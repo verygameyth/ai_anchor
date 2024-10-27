@@ -1,0 +1,6 @@
+2024-10-27 15:26:11,058 INFO ai_bilibili_start [line:214] AI落九千开始初始化...
+2024-10-27 15:26:11,058 INFO ai_bilibili_start [line:215] 落九千的直播间开启弹幕监听
+2024-10-27 15:26:11,059 INFO base.py [line:454] Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2024-10-27 15:26:11,059 INFO ai_bilibili_start [line:219] AI落九千结束直播
+2024-10-27 15:26:11,065 ERROR base_events.py [line:1821] Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x0000015CDE3F5D90>
