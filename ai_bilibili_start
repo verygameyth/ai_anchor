@@ -55,6 +55,7 @@ def filter_html_tags(text):
     return re.sub(pattern, '', text)
 
 
+
 # 判断字符位置（包含搜索字符）- 如，搜索“画画女孩”，则输出“女孩”位置
 def rfind_index_contain_string(string_array, target_string):
     i = 0
