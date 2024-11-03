@@ -14,6 +14,7 @@ import requests
 import yaml
 from flask import Flask
 from flask_apscheduler import APScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # 加载配置
 f = open('config.yml', 'r', encoding='utf-8')
@@ -48,12 +49,14 @@ logging.basicConfig(level=logging.INFO, encoding="utf-8",
                               logging.FileHandler(filename=f"./logs/log_{today}.txt", encoding="utf-8")])
 log = logging.getLogger("bilibili-live")
 
+# 定时器
+sched = AsyncIOScheduler(timezone="Asia/Shanghai")
+
 
 # 过滤html标签
 def filter_html_tags(text):
     pattern = r'\[.*?\]|<.*?>|\(.*?\)|\n'  # 匹配尖括号内的所有内容
     return re.sub(pattern, '', text)
-
 
 
 # 判断字符位置（包含搜索字符）- 如，搜索“画画女孩”，则输出“女孩”位置
@@ -92,7 +95,7 @@ def chat_qwen(content):
 
 
 async def listen_blivedm_task():
-    asyncio.create_task(run_single_client())
+    await asyncio.create_task(run_single_client())
 
 
 # B站弹幕监听
@@ -158,20 +161,17 @@ def msg_deal(traceid, query, uid, user_name):
     """
     # traceid = str(uuid.uuid4())
     query = filter(query, filterCh)
-    log.info(f"[{traceid}]弹幕捕获：[{user_name}]:{query}")  # 打印弹幕信息
     # 询问LLM
     llm_json = {"traceid": traceid, "prompt": query, "uid": uid, "username": user_name}
+    log.info(f"弹幕捕获：{llm_json}")  # 打印弹幕信息
     QuestionList.put(llm_json)  # 将弹幕消息放入队列
 
 
 # 检查LLM回复线程
 def check_answer():
-    """
-    如果AI没有在生成回复且队列中还有问题 则创建一个生成的线程
-    :return:
-    """
     global is_ai_ready
     global QuestionList
+    # log.info(f"当前问题队列  待回复数量：{QuestionList.qsize()} is_ai_ready：{is_ai_ready}")
     if not QuestionList.empty() and is_ai_ready:
         is_ai_ready = False
         answers_thread = Thread(target=aiResponseTry)
@@ -189,6 +189,7 @@ def aiResponseTry():
 
 
 def ai_response():
+    log.info(f"{Ai_Name}回复中...")
     global is_ai_ready
     is_ai_ready = False
     llm_json = QuestionList.get()
@@ -210,18 +211,20 @@ def ai_response():
                 stream_content = response_json["message"]["content"]
                 all_content += stream_content
 
+    log.info(f"{Ai_Name}:{all_content}")
+
 
 def main():
+    # global sched
     log.info(f"AI{Ai_Name}开始初始化...")
     log.info(f"{Ai_Name}的直播间开启弹幕监听")
-    asyncio.run(listen_blivedm_task())
-
-    sched1.add_job(func=check_answer, trigger="interval", seconds=1, id=f"answer", max_instances=100)
+    sched.add_job(func=check_answer, trigger="interval", seconds=1, id="answer", max_instances=100)
+    sched.start()
+    # asyncio.run(listen_blivedm_task())
     log.info(f"AI{Ai_Name}结束直播")
 
-
-app = Flask(__name__, template_folder='./html')
-sched1 = APScheduler()
-sched1.init_app(app)
+# app = Flask(__name__, template_folder='./html')
+# sched1 = APScheduler()
+# sched1.init_app(app)
 if (__name__ == '__main__'):
     main()
